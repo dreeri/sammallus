@@ -1,32 +1,85 @@
 #include <stdio.h>
 #include <stdlib.h>
-
 #include <editline/readline.h>
 #include "mpc.h"
 
-long eval_op(long x, char* op, long y) {
-    if(strcmp(op, "+") == 0) {
-        return x + y;
-    }
-    if(strcmp(op, "-") == 0) {
-        return x - y;
-    }
-    if(strcmp(op, "*") == 0) {
-        return x * y;
-    }
-    if(strcmp(op, "/") == 0) {
-        return x / y;
-    }
-    return 0;
+typedef struct {
+    int type;
+    long number;
+    int error;
+} lisp_value;
+
+enum { VALUE_NUMBER, VALUE_ERROR };
+
+enum { ERROR_DIVIDE_ZERO, ERROR_BAD_OPERATOR, ERROR_BAD_NUMBER };
+
+lisp_value lisp_value_number(long x) {
+    lisp_value value;
+    value.type = VALUE_NUMBER;
+    value.number = x;
+    return value;
 }
 
-long eval(mpc_ast_t* t) {
+lisp_value lisp_value_error(int x) {
+    lisp_value value;
+    value.type = VALUE_ERROR;
+    value.error = x;
+    return value;
+}
+
+void lisp_value_print(lisp_value value) {
+    switch (value.type) {
+        case VALUE_NUMBER:
+            printf("%li\n", value.number);
+            break;
+        case VALUE_ERROR:
+            if(value.error == ERROR_DIVIDE_ZERO) {
+                printf("Error: Division By Zero.\n");
+            }
+            if(value.error == ERROR_BAD_OPERATOR) {
+                printf("Error: Invalid Operator.\n");
+            }
+            if(value.error == ERROR_BAD_NUMBER) {
+                printf("Error: Invalid Number.\n");
+            }
+            break;
+    }
+}
+
+lisp_value eval_op(lisp_value x, char* op, lisp_value y) {
+    if(x.type == VALUE_ERROR) {
+        return x;
+    }
+    if(y.type == VALUE_ERROR) {
+        return y;
+    }
+
+    if(strcmp(op, "+") == 0) {
+        return lisp_value_number(x.number + y.number);
+    }
+    if(strcmp(op, "-") == 0) {
+        return lisp_value_number(x.number - y.number);
+    }
+    if(strcmp(op, "*") == 0) {
+        return lisp_value_number(x.number * y.number);
+    }
+    if(strcmp(op, "/") == 0) {
+        return y.number == 0
+                ? lisp_value_error(ERROR_DIVIDE_ZERO)
+                : lisp_value_number(x.number / y.number);
+    }
+    return lisp_value_error(ERROR_BAD_OPERATOR);
+}
+
+lisp_value eval(mpc_ast_t* t) {
     if(strstr(t->tag, "number")) {
-        return atoi(t->contents);
+        errno = 0;
+        long x = strtol(t->contents, NULL, 10);
+        return errno != ERANGE ? lisp_value_number(x) : lisp_value_error(ERROR_BAD_NUMBER);
     }
 
     char* op = t->children[1]->contents;
-    long x = eval(t->children[2]);
+    lisp_value x = eval(t->children[2]);
     int i = 3;
     while(strstr(t->children[i]->tag, "expr")) {
         x = eval_op(x, op, eval(t->children[i]));
@@ -60,8 +113,8 @@ int main(int argc, char** argv) {
 
         mpc_result_t result;
         if(mpc_parse("<stdin>", input, Lispy, &result)) {
-            long evalued_result = eval(result.output);
-            printf("%li\n", evalued_result);
+            lisp_value evalued_result = eval(result.output);
+            lisp_value_print(evalued_result);
             mpc_ast_delete(result.output);
         } else {
             mpc_err_print(result.error);
