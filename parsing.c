@@ -1,5 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
 #include <editline/readline.h>
 #include "mpc.h"
 
@@ -69,7 +67,7 @@ lisp_value* lisp_value_read_number(mpc_ast_t* tree) {
     errno = 0;
     long x = strtol(tree->contents, NULL, 10);
     return errno != ERANGE ?
-        lisp_value_number(x) : lisp_value_error("Invalid number.\n");
+        lisp_value_number(x) : lisp_value_error("Invalid number. Internal datatype is a long int, so stay below signed 2^32 range.\n");
 }
 
 lisp_value* lisp_value_add(lisp_value* value, lisp_value* child) {
