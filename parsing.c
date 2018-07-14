@@ -10,7 +10,7 @@ typedef struct lisp_value {
     struct lisp_value** cell;
 } lisp_value;
 
-enum { VALUE_NUMBER, VALUE_ERROR, VALUE_SYMBOL, VALUE_S_EXPRESSION };
+enum { VALUE_NUMBER, VALUE_ERROR, VALUE_SYMBOL, VALUE_S_EXPRESSION, VALUE_Q_EXPRESSION };
 
 lisp_value* lisp_value_number(long x) {
     lisp_value* value = malloc(sizeof(lisp_value));
@@ -43,6 +43,14 @@ lisp_value* lisp_value_s_expression(void) {
     return value;
 }
 
+lisp_value* lisp_value_q_expression(void) {
+    lisp_value* value = malloc(sizeof(lisp_value));
+    value->type = VALUE_Q_EXPRESSION;
+    value->count = 0;
+    value->cell = NULL;
+    return value;
+}
+
 void lisp_value_delete(lisp_value* value) {
     switch (value->type) {
         case VALUE_NUMBER:
@@ -53,6 +61,7 @@ void lisp_value_delete(lisp_value* value) {
         case VALUE_SYMBOL:
             free(value->symbol);
             break;
+        case VALUE_Q_EXPRESSION:
         case VALUE_S_EXPRESSION:
             for(int i = 0; i < value->count; i++) {
                 lisp_value_delete(value->cell[i]);
@@ -92,12 +101,21 @@ lisp_value* lisp_value_read(mpc_ast_t* tree) {
     if(strstr(tree->tag, "s_expression")) {
         expressions = lisp_value_s_expression();
     }
+    if(strstr(tree->tag, "q_expression")) {
+        expressions = lisp_value_q_expression();
+    }
 
     for(int i = 0; i < tree->children_num; i++) {
         if(strcmp(tree->children[i]->contents, "(") == 0) {
             continue;
         }
         if(strcmp(tree->children[i]->contents, ")") == 0) {
+            continue;
+        }
+        if(strcmp(tree->children[i]->contents, "{") == 0) {
+            continue;
+        }
+        if(strcmp(tree->children[i]->contents, "}") == 0) {
             continue;
         }
         if(strcmp(tree->children[i]->tag, "regex") == 0) {
@@ -136,6 +154,9 @@ void lisp_value_print(lisp_value* value) {
             break;
         case VALUE_S_EXPRESSION:
             lisp_value_expression_print(value, '(', ')');
+            break;
+        case VALUE_Q_EXPRESSION:
+            lisp_value_expression_print(value, '{', '}');
             break;
     }
 }
@@ -244,6 +265,7 @@ int main(int argc, char** argv) {
     mpc_parser_t* Number = mpc_new("number");
     mpc_parser_t* Symbol = mpc_new("symbol");
     mpc_parser_t* S_Expression = mpc_new("s_expression");
+    mpc_parser_t* Q_Expression = mpc_new("q_expression");
     mpc_parser_t* Expression = mpc_new("expression");
     mpc_parser_t* Lispy = mpc_new("lispy");
 
@@ -252,10 +274,11 @@ int main(int argc, char** argv) {
         number : /-?[0-9]+/; \
         symbol : '+' | '-' | '*' | '/'; \
         s_expression : '(' <expression>* ')'; \
-        expression : <number> | <symbol> | <s_expression>; \
+        q_expression : '{' <expression>* '}'; \
+        expression : <number> | <symbol> | <s_expression> | <q_expression>; \
         lispy : /^/ <expression>* /$/; \
         ",
-        Number, Symbol, S_Expression, Expression, Lispy);
+        Number, Symbol, S_Expression, Q_Expression, Expression, Lispy);
 
     puts("Sammallus Version 0.1");
     puts("Press Ctrl+c to Exit\n");
@@ -278,7 +301,7 @@ int main(int argc, char** argv) {
         free(input);
     }
 
-    mpc_cleanup(5, Number, Symbol, S_Expression, Expression, Lispy);
+    mpc_cleanup(6, Number, Symbol, S_Expression, Q_Expression, Expression, Lispy);
 
     return 0;
 }
