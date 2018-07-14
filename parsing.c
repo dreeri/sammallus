@@ -89,7 +89,7 @@ lisp_value* lisp_value_read(mpc_ast_t* tree) {
     if(strcmp(tree->tag, ">") == 0) {
         expressions = lisp_value_s_expression();
     }
-    if(strstr(tree->tag, "sexpression")) {
+    if(strstr(tree->tag, "s_expression")) {
         expressions = lisp_value_s_expression();
     }
 
@@ -243,7 +243,7 @@ int main(int argc, char** argv) {
 
     mpc_parser_t* Number = mpc_new("number");
     mpc_parser_t* Symbol = mpc_new("symbol");
-    mpc_parser_t* S_Expression = mpc_new("sexpression");
+    mpc_parser_t* S_Expression = mpc_new("s_expression");
     mpc_parser_t* Expression = mpc_new("expression");
     mpc_parser_t* Lispy = mpc_new("lispy");
 
@@ -251,8 +251,8 @@ int main(int argc, char** argv) {
         " \
         number : /-?[0-9]+/; \
         symbol : '+' | '-' | '*' | '/'; \
-        sexpression : '(' <expression>* ')'; \
-        expression : <number> | <symbol> | <sexpression>; \
+        s_expression : '(' <expression>* ')'; \
+        expression : <number> | <symbol> | <s_expression>; \
         lispy : /^/ <expression>* /$/; \
         ",
         Number, Symbol, S_Expression, Expression, Lispy);
