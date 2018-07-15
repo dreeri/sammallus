@@ -180,6 +180,74 @@ lisp_value* lisp_value_take(lisp_value* value, int i) {
     return popped_value;
 }
 
+lisp_value* lisp_value_join(lisp_value* x, lisp_value* y) {
+    while(y->count) {
+        x = lisp_value_add(x, lisp_value_pop(y, 0));
+    }
+    lisp_value_delete(y);
+    return x;
+}
+
+//Preprocessor macro for easier error assert for builtin types.
+#define LISP_ASSERT(args, condition, error) \
+    if(!(condition)) { \
+        lisp_value_delete(args); \
+        return lisp_value_error(error); \
+    }
+
+//lisp_value_evaluate forward decleration
+lisp_value* lisp_value_evaluate(lisp_value* value);
+
+lisp_value* builtin_list(lisp_value* value) {
+    value->type = VALUE_Q_EXPRESSION;
+    return value;
+}
+
+lisp_value* builtin_head(lisp_value* value) {
+    LISP_ASSERT(value, value->count == 1, "Function 'head' was passed too many values.");
+    LISP_ASSERT(value, value->cell[0]->type == VALUE_Q_EXPRESSION, "Function 'head' was passed an incorrect type: Q-Expression {}.");
+    LISP_ASSERT(value, value->cell[0]->count != 0, "Function 'head' was passed an empty Q-Expression {}.");
+
+    lisp_value* first_child = lisp_value_take(value, 0);
+    while(first_child->count > 1) {
+        lisp_value_delete(lisp_value_pop(first_child, 1));
+    }
+    return first_child;
+}
+
+//TODO: Tail should take n from end. Currently takes "body".
+lisp_value* builtin_tail(lisp_value* value) {
+    printf("Fix tail to be tail.");
+    LISP_ASSERT(value, value->count == 1, "Function 'tail' was passed too many values.");
+    LISP_ASSERT(value, value->cell[0]->type == VALUE_Q_EXPRESSION, "Function 'tail' was passed an incorrect type: Q-Expression {}.");
+    LISP_ASSERT(value, value->cell[0]->count != 0, "Function 'tail' was passed  an empty Q-Expression {}.");
+
+    lisp_value* first_child = lisp_value_take(value, 0);
+    lisp_value_delete(lisp_value_pop(first_child, 0));
+    return first_child;
+}
+
+lisp_value* builtin_join(lisp_value* value) {
+    for(int i = 0; i < value->count; i++) {
+        LISP_ASSERT(value, value->cell[i]->type == VALUE_Q_EXPRESSION, "Function 'join' passed incorrect type: Q-Expression {}.");
+    }
+
+    lisp_value* first_child = lisp_value_pop(value, 0);
+    while(value->count) {
+        first_child = lisp_value_join(first_child, lisp_value_pop(value, 0));
+    }
+    lisp_value_delete(value);
+    return first_child;
+}
+
+lisp_value* builtin_evaluate(lisp_value* value) {
+    LISP_ASSERT(value, value->count == 1, "Function 'evaluate' was passed too many values.");
+    LISP_ASSERT(value, value->cell[0]->type == VALUE_Q_EXPRESSION, "Function 'evaluate' passed incorrect type: Q-Expression {}.");
+    lisp_value* first_child = lisp_value_take(value, 0);
+    first_child->type = VALUE_S_EXPRESSION;
+    return lisp_value_evaluate(first_child);
+}
+
 lisp_value* builtin_operator(lisp_value* value, char* operator) {
     for(int i = 0; i < value->count; i++) {
         if(value->cell[i]->type != VALUE_NUMBER) {
@@ -219,12 +287,32 @@ lisp_value* builtin_operator(lisp_value* value, char* operator) {
     return first_element;
 }
 
-//lisp_value_eval forward decleration
-lisp_value* lisp_value_eval(lisp_value* value);
+lisp_value* builtin_type(lisp_value* value, char* function) {
+    if(strcmp("list", function) == 0) {
+        return builtin_list(value);
+    }
+    if(strcmp("head", function) == 0) {
+        return builtin_head(value);
+    }
+    if(strcmp("tail", function) == 0) {
+        return builtin_tail(value);
+    }
+    if(strcmp("join", function) == 0) {
+        return builtin_join(value);
+    }
+    if(strcmp("evaluate", function) == 0) {
+        return builtin_evaluate(value);
+    }
+    if(strstr("+-/*", function)) {
+        return builtin_operator(value, function);
+    }
+    lisp_value_delete(value);
+    return lisp_value_error("Unknown function.");
+}
 
 lisp_value* lisp_value_evaluate_s_expression(lisp_value* value) {
     for(int i = 0; i < value->count; i++) {
-        value->cell[i] = lisp_value_eval(value->cell[i]);
+        value->cell[i] = lisp_value_evaluate(value->cell[i]);
     }
 
     for(int i = 0; i < value->count; i++) {
@@ -248,12 +336,12 @@ lisp_value* lisp_value_evaluate_s_expression(lisp_value* value) {
         return lisp_value_error("S-expression does not start with a symbol.");
     }
 
-    lisp_value* result = builtin_operator(value, first->symbol);
+    lisp_value* result = builtin_type(value, first->symbol);
     lisp_value_delete(first);
     return result;
 }
 
-lisp_value* lisp_value_eval(lisp_value* value) {
+lisp_value* lisp_value_evaluate(lisp_value* value) {
     if(value->type == VALUE_S_EXPRESSION) {
         return lisp_value_evaluate_s_expression(value);
     }
@@ -272,7 +360,8 @@ int main(int argc, char** argv) {
     mpca_lang(MPCA_LANG_DEFAULT,
         " \
         number : /-?[0-9]+/; \
-        symbol : '+' | '-' | '*' | '/'; \
+        symbol : '+' | '-' | '*' | '/' \
+                 | \"list\" | \"head\" | \"tail\" | \"join\" | \"evaluate\"; \
         s_expression : '(' <expression>* ')'; \
         q_expression : '{' <expression>* '}'; \
         expression : <number> | <symbol> | <s_expression> | <q_expression>; \
@@ -289,7 +378,7 @@ int main(int argc, char** argv) {
 
         mpc_result_t result;
         if(mpc_parse("<stdin>", input, Lispy, &result)) {
-            lisp_value* evalued_result = lisp_value_eval(lisp_value_read(result.output));
+            lisp_value* evalued_result = lisp_value_evaluate(lisp_value_read(result.output));
             lisp_value_print_line(evalued_result);
             lisp_value_delete(evalued_result);
             mpc_ast_delete(result.output);
