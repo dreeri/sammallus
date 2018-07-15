@@ -205,7 +205,7 @@ lisp_value* builtin_list(lisp_value* value) {
 
 lisp_value* builtin_head(lisp_value* value) {
     LISP_ASSERT(value, value->count == 1, "Function 'head' was passed too many values.");
-    LISP_ASSERT(value, value->cell[0]->type == VALUE_Q_EXPRESSION, "Function 'head' was passed an incorrect type: Q-Expression {}.");
+    LISP_ASSERT(value, value->cell[0]->type == VALUE_Q_EXPRESSION, "Function 'head' was passed an incorrect type: Not Q-Expression {}.");
     LISP_ASSERT(value, value->cell[0]->count != 0, "Function 'head' was passed an empty Q-Expression {}.");
 
     lisp_value* first_child = lisp_value_take(value, 0);
@@ -219,7 +219,7 @@ lisp_value* builtin_head(lisp_value* value) {
 lisp_value* builtin_tail(lisp_value* value) {
     printf("Fix tail to be tail.");
     LISP_ASSERT(value, value->count == 1, "Function 'tail' was passed too many values.");
-    LISP_ASSERT(value, value->cell[0]->type == VALUE_Q_EXPRESSION, "Function 'tail' was passed an incorrect type: Q-Expression {}.");
+    LISP_ASSERT(value, value->cell[0]->type == VALUE_Q_EXPRESSION, "Function 'tail' was passed an incorrect type: Not Q-Expression {}.");
     LISP_ASSERT(value, value->cell[0]->count != 0, "Function 'tail' was passed  an empty Q-Expression {}.");
 
     lisp_value* first_child = lisp_value_take(value, 0);
@@ -229,7 +229,7 @@ lisp_value* builtin_tail(lisp_value* value) {
 
 lisp_value* builtin_join(lisp_value* value) {
     for(int i = 0; i < value->count; i++) {
-        LISP_ASSERT(value, value->cell[i]->type == VALUE_Q_EXPRESSION, "Function 'join' passed incorrect type: Q-Expression {}.");
+        LISP_ASSERT(value, value->cell[i]->type == VALUE_Q_EXPRESSION, "Function 'join' passed incorrect type: Not Q-Expression {}.");
     }
 
     lisp_value* first_child = lisp_value_pop(value, 0);
@@ -242,7 +242,7 @@ lisp_value* builtin_join(lisp_value* value) {
 
 lisp_value* builtin_evaluate(lisp_value* value) {
     LISP_ASSERT(value, value->count == 1, "Function 'evaluate' was passed too many values.");
-    LISP_ASSERT(value, value->cell[0]->type == VALUE_Q_EXPRESSION, "Function 'evaluate' passed incorrect type: Q-Expression {}.");
+    LISP_ASSERT(value, value->cell[0]->type == VALUE_Q_EXPRESSION, "Function 'evaluate' passed incorrect type: Not Q-Expression {}.");
     lisp_value* first_child = lisp_value_take(value, 0);
     first_child->type = VALUE_S_EXPRESSION;
     return lisp_value_evaluate(first_child);
