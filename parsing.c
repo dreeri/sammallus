@@ -355,7 +355,7 @@ int main(int argc, char** argv) {
     mpc_parser_t* S_Expression = mpc_new("s_expression");
     mpc_parser_t* Q_Expression = mpc_new("q_expression");
     mpc_parser_t* Expression = mpc_new("expression");
-    mpc_parser_t* Lispy = mpc_new("lispy");
+    mpc_parser_t* Sammallus = mpc_new("sammallus");
 
     mpca_lang(MPCA_LANG_DEFAULT,
         " \
@@ -365,19 +365,19 @@ int main(int argc, char** argv) {
         s_expression : '(' <expression>* ')'; \
         q_expression : '{' <expression>* '}'; \
         expression : <number> | <symbol> | <s_expression> | <q_expression>; \
-        lispy : /^/ <expression>* /$/; \
+        sammallus : /^/ <expression>* /$/; \
         ",
-        Number, Symbol, S_Expression, Q_Expression, Expression, Lispy);
+        Number, Symbol, S_Expression, Q_Expression, Expression, Sammallus);
 
     puts("Sammallus Version 0.1");
     puts("Press Ctrl+c to Exit\n");
 
     while(1) {
-        char* input = readline("lispy> ");
+        char* input = readline("sammallus> ");
         add_history(input);
 
         mpc_result_t result;
-        if(mpc_parse("<stdin>", input, Lispy, &result)) {
+        if(mpc_parse("<stdin>", input, Sammallus, &result)) {
             lisp_value* evalued_result = lisp_value_evaluate(lisp_value_read(result.output));
             lisp_value_print_line(evalued_result);
             lisp_value_delete(evalued_result);
@@ -390,7 +390,7 @@ int main(int argc, char** argv) {
         free(input);
     }
 
-    mpc_cleanup(6, Number, Symbol, S_Expression, Q_Expression, Expression, Lispy);
+    mpc_cleanup(6, Number, Symbol, S_Expression, Q_Expression, Expression, Sammallus);
 
     return 0;
 }
